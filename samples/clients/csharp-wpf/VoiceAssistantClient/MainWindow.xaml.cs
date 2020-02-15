@@ -188,6 +188,16 @@ namespace VoiceAssistantClient
             if (!string.IsNullOrWhiteSpace(this.settings.RuntimeSettings.SubscriptionKey) &&
                 !string.IsNullOrWhiteSpace(this.settings.RuntimeSettings.SubscriptionKeyRegion))
             {
+                // URL overrides (used, for example, to access a specific flight) are
+                // mutually exclusive with regions (which are just uesd to construct a URL).
+                // When a URL override is present, any provided region is ignored and an empty
+                // string is used instead.
+                var urlOverride = this.settings.RuntimeSettings.UrlOverride;
+                var hasUrlOverride = !string.IsNullOrEmpty(urlOverride);
+                var regionToUse = hasUrlOverride
+                    ? string.Empty
+                    : this.settings.RuntimeSettings.SubscriptionKeyRegion;
+
                 if (!string.IsNullOrWhiteSpace(this.settings.RuntimeSettings.CustomCommandsAppId))
                 {
                     // NOTE: Custom commands is a preview Azure Service.
@@ -195,14 +205,19 @@ namespace VoiceAssistantClient
                     // - The Custom commands application ID
                     // - Cognitive services speech subscription key.
                     // - The Azure region of the subscription key(e.g. "westus").
-                    config = CustomCommandsConfig.FromSubscription(this.settings.RuntimeSettings.CustomCommandsAppId, this.settings.RuntimeSettings.SubscriptionKey, this.settings.RuntimeSettings.SubscriptionKeyRegion);
+                    config = CustomCommandsConfig.FromSubscription(
+                        this.settings.RuntimeSettings.CustomCommandsAppId,
+                        this.settings.RuntimeSettings.SubscriptionKey,
+                        regionToUse);
                 }
                 else
                 {
                     // Set the bot framework configuration object based on two items:
                     // - Cognitive services speech subscription key. It is needed for billing and is tied to the bot registration.
                     // - The Azure region of the subscription key(e.g. "westus").
-                    config = BotFrameworkConfig.FromSubscription(this.settings.RuntimeSettings.SubscriptionKey, this.settings.RuntimeSettings.SubscriptionKeyRegion);
+                    config = BotFrameworkConfig.FromSubscription(
+                        this.settings.RuntimeSettings.SubscriptionKey,
+                        regionToUse);
                 }
             }
 
