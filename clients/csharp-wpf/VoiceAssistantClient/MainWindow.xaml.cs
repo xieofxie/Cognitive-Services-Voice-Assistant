@@ -27,6 +27,7 @@ namespace VoiceAssistantClient
     using NAudio.Wave;
     using Newtonsoft.Json;
     using VoiceAssistantClient.Settings;
+    using Wrapper;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml.
@@ -488,13 +489,29 @@ namespace VoiceAssistantClient
             }
             else if (e.Action is AdaptiveSubmitAction submitAction)
             {
-                var inputs = sender.UserInputs.AsJson();
-
-                // Merge the Action.Submit Data property with the inputs
-                inputs.Merge(submitAction.Data);
-
-                MessageBox.Show(this, JsonConvert.SerializeObject(inputs, Formatting.Indented), "SubmitAction");
+                var bfActivity = Activity.CreateMessageActivity();
+                bfActivity.Text = submitAction.Data.ToString();
+                SendCustomActivity(bfActivity as Activity);
             }
+        }
+
+        private void SendCustomActivity(Activity botFrameworkActivity)
+        {
+            if (this.connector == null)
+            {
+                this.InitSpeechConnector();
+            }
+
+            if (!string.IsNullOrEmpty(this.settings.RuntimeSettings.FromId))
+            {
+                botFrameworkActivity.From = new ChannelAccount(this.settings.RuntimeSettings.FromId);
+            }
+
+            var jsonConnectorActivity = JsonConvert.SerializeObject(botFrameworkActivity);
+            this.Messages.Add(new MessageDisplay(botFrameworkActivity.Text, Sender.User));
+            this.Activities.Add(new ActivityDisplay(jsonConnectorActivity, botFrameworkActivity, Sender.User));
+            string id = this.connector.SendActivityAsync(jsonConnectorActivity).Result;
+            Debug.WriteLine($"SendCustomActivity called, id = {id}");
         }
 
         private void SwitchToNewBotEndpoint()
@@ -702,7 +719,10 @@ namespace VoiceAssistantClient
                 this.RunOnUiThread(() =>
                 {
                     this.UpdateStatus(msg, tentative);
-                    this.ConversationView.ConversationHistory.ScrollIntoView(this.ConversationView.ConversationHistory.Items[this.ConversationView.ConversationHistory.Items.Count - 1]);
+                    if (this.ConversationView.ConversationHistory.Items.Count >= 1)
+                    {
+                        this.ConversationView.ConversationHistory.ScrollIntoView(this.ConversationView.ConversationHistory.Items[this.ConversationView.ConversationHistory.Items.Count - 1]);
+                    }
                 });
                 return;
             }
@@ -814,6 +834,27 @@ namespace VoiceAssistantClient
             var succeeded = settingsDialog.ShowDialog();
 
             // BUGBUG: Do not call reset, leave it for later as this is usually the first action.
+        }
+
+        private Detector detector;
+
+        private void Process_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            if (openFileDialog.ShowDialog() == true)
+            {
+                if (detector == null)
+                {
+                    detector = new Detector();
+                    detector.Init("darknet/");
+                }
+
+                var result = detector.Process(openFileDialog.FileName, "prediction");
+                var bfActivity = Activity.CreateEventActivity();
+                bfActivity.Name = "Detection";
+                bfActivity.Value = result;
+                SendCustomActivity(bfActivity as Activity);
+            }
         }
 
         private void UpdateConnectionProfileInfoBlock()

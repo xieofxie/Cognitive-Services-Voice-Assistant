@@ -53,6 +53,7 @@
                     <Button Name="Settings"  ToolTip="Application settings"  Click="Settings_Click" Margin="5,0" Height="35" Width="35">
                         <Image Source="resources/Settings.png" Stretch="UniformToFill" Margin="4"/>
                     </Button>
+                    <Button Content="Process" Width="75" Click="Process_Click" />
                 </StackPanel>
             </Grid>
             <Grid Background="White"  VerticalAlignment="Stretch"   Grid.Row="2" Grid.ColumnSpan="2">
